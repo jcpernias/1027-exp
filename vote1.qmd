@@ -1,0 +1,113 @@
+---
+title: "vote1"
+
+author: "José Pernías"
+date: last-modified
+lang: es
+toc-title: Contenido
+toc: true
+number-sections: true
+number-depth: 3
+format-links: false
+
+format:
+  html:
+    theme:
+      - flatly
+      - labs_1027.scss
+    embed-resources: true
+---
+
+Carga paquetes para gráficos y contrastes de hipótesis:
+
+```{r}
+#| messages: FALSE
+
+# Use ggformula for graphics and plots
+library(ggformula)
+
+# Use car for linear hypothesis testing
+library(car)
+```
+
+Lee los datos de un fichero csv:
+
+```{r}
+vote <- read.csv2("data/vote.csv")
+```
+
+FALTA: descripción de los datos.
+
+Regresión simple: votos obtenidos por los candidatos demócratas en función de sus gastos de campaña:
+
+```{r}
+mod1 <- lm(vote_dem ~ exp_dem, data = vote)
+summary(mod1)
+```
+
+Obtenemos los residuos de la regresión:
+
+```{r}
+uhat <- resid(mod1)
+```
+
+Gráfico de los residuos frente a la variable explicativa:
+
+```{r}
+gf_point(uhat ~ exp_dem, data = vote)
+```
+
+Añadimos los gastos de campaña del candidato rival como un regresor adicional:
+
+```{r}
+mod2 <- lm(vote_dem ~ exp_dem + exp_rep, data = vote)
+summary(mod2)
+```
+
+Regresor adicional: fuerza del partido demócrata:
+
+```{r}
+mod3 <- lm(vote_dem ~ exp_dem + exp_rep + str_dem, data = vote)
+summary(mod3)
+```
+
+Sería más fácil interpretar los parámetros del modelo si en vez de `str_dem` usamos la diferencia en el porcentaje de votos recibido por el candidato a presidente demócrata:
+
+```{r}
+vote$diff_str <- 2 * vote$str_dem - 100
+
+mod4 <- lm(vote_dem ~ exp_dem + exp_rep + diff_str, data = vote)
+summary(mod4)
+```
+
+Gráfico de los residuos frente a los valores ajustados:
+
+```{r}
+uhat <- resid(mod4)
+yhat <- fitted(mod4)
+gf_point(uhat ~ yhat, data = vote)
+```
+
+FALTA: contraste de hipótesis sobre los parámetros.
+
+Alternativamente, podemos usar el porcentaje que representan los gastos del candidato demócrata sobre los gastos totales. Normalizamos restando 50, de forma que cuando toma el valor 0 significa que ambos candidatos gastan lo mismo, valores positivos indican que el candidato demócrata gastó relativamente más que el republicano y valores negativos indican que gastó menos el candidato demócrata:
+
+```{r}
+
+vote <- within(vote, {
+  exp_diff <- exp_dem - exp_rep
+  exp_total <- exp_dem + exp_rep
+  share_exp_dem <- 100 * exp_dem / exp_total - 50
+})
+
+mod5 <- lm(vote_dem ~ share_exp_dem + diff_str, data = vote)
+summary(mod5)
+```
+
+Examinamos los residuos de la última regresión:
+
+```{r}
+uhat <- resid(mod5)
+yhat <- fitted(mod5)
+gf_point(uhat ~ yhat, data = vote)
+```
