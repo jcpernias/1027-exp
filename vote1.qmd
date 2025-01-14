@@ -31,8 +31,11 @@ Carga paquetes para gráficos y contrastes de hipótesis:
 library(ggformula)
 
 # Use modelsummary for tables
-library(modelsummary)
 library(tinytable)
+options(modelsummary_factory_default = "tinytable") 
+options(modelsummary_factory_latex = "tinytable") 
+options(modelsummary_factory_html = "tinytable")
+library(modelsummary)
 
 # Use car for linear hypothesis testing
 library(car)
@@ -70,8 +73,7 @@ datasummary_skim(vote,
                                     "Desv. Típ." = SD,
                                     Mín. = Min,
                                     Mediana = Median,
-                                    Máx. = Max)
-) |> 
+                                    Máx. = Max)) |> 
   style_tt(j = 2:6, align = "r")
 ```
 
@@ -84,21 +86,32 @@ datasummary_skim(vote,
 *¿Existe alguna asociación entre los gastos de campaña de los candidatos y los resultados electorales?* Podemos realizar un análisis preliminar definiendo dos nuevas variables ficticias: `exp_diff` que toma el valor 1 en aquellos distritos en que los demócratas gastaron más y `vote_diff` que toma el valor 1 en los distritos donde ganaron los demócratas.
 
 ```{r}
-vote$more_exp <- factor(ifelse(vote$exp_dem - vote$exp_rep > 0, 
-                               "Dem.", "Rep."), 
-                        levels = c("Dem.", "Rep."))
-vote$more_votes <- factor(ifelse(vote$vote_dem - 50 > 0,
-                                 "Dem.", "Rep."),
-                          levels = c("Dem.", "Rep."))
+local({
+  mk_factor <- function(x) {
+    levels <- c("Dem.", "Rep.")
+    factor(ifelse(x, 
+                  levels[1], levels[2]), 
+           levels = levels)
+  }
+  ct_db <- 
+    data.frame("Greater exp." = 
+                 mk_factor(vote$exp_dem - vote$exp_rep > 0), 
+               "More votes" = 
+                 mk_factor(vote$vote_dem - 50 > 0), 
+               check.names = FALSE)
+  
+  datasummary_crosstab(`Greater exp.` ~ `More votes`, 
+                       output = "tinytable",
+                       data = ct_db,
+                       statistic = ~ N + Percent("row")) |> 
+    group_tt(j = list("More votes" = 3:4)) 
+}) 
 ```
 
 Una tabla de contingencia:
 
 ```{r}
-datasummary_crosstab(more_exp ~ more_votes, data = vote,
-                     statistic = ~ N + Percent("row")) |> 
-  setNames(c("More exp.", "", "Dem.", "Rep.")) |> 
-  group_tt(j = list("More votes" = 3:4))
+
 ```
 
 *¿Están asociados los gastos de campaña de los dos rivales? ¿Y están asociados con la fuerza del partido demócrata?*
