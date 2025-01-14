@@ -32,6 +32,7 @@ library(ggformula)
 
 # Use modelsummary for tables
 library(modelsummary)
+library(tinytable)
 
 # Use car for linear hypothesis testing
 library(car)
@@ -69,9 +70,9 @@ datasummary_skim(vote,
                                     "Desv. Típ." = SD,
                                     Mín. = Min,
                                     Mediana = Median,
-                                    Máx. = Max),
-                 align = "lccccc"
-) 
+                                    Máx. = Max)
+) |> 
+  style_tt(j = 2:6, align = "r")
 ```
 
 *¿Qué porcentaje de votos obtuvieron los candidatos demócratas por término medio? ¿En cuántos distritos ganaron los demócratas?* Los candidatos demócratas obtuvieron por término medio el `r round(mean(vote$vote_dem), 1)`% de los votos y ganaron las elecciones en el `r round(mean(vote$vote_dem > 50) * 100, 1)`% de los distritos electorales.
@@ -87,15 +88,17 @@ vote$more_exp <- factor(ifelse(vote$exp_dem - vote$exp_rep > 0,
                                "Dem.", "Rep."), 
                         levels = c("Dem.", "Rep."))
 vote$more_votes <- factor(ifelse(vote$vote_dem - 50 > 0,
-                                 "Dem. won", "Rep. won"),
-                          levels = c("Dem. won", "Rep. won"))
+                                 "Dem.", "Rep."),
+                          levels = c("Dem.", "Rep."))
 ```
 
 Una tabla de contingencia:
 
 ```{r}
 datasummary_crosstab(more_exp ~ more_votes, data = vote,
-                     statistic = ~ N + Percent("row"))
+                     statistic = ~ N + Percent("row")) |> 
+  setNames(c("More exp.", "", "Dem.", "Rep.")) |> 
+  group_tt(j = list("More votes" = 3:4))
 ```
 
 *¿Están asociados los gastos de campaña de los dos rivales? ¿Y están asociados con la fuerza del partido demócrata?*
