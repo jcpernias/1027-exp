@@ -17,7 +17,6 @@ vote <- within(subset(vote1, select = c(state, district)), {
   exp_rep <- ifelse(vote1$democA == 1, vote1$expendB, vote1$expendA)
   exp_dem <- ifelse(vote1$democA == 1, vote1$expendA, vote1$expendB)
   vote_dem <- ifelse(vote1$democA == 1, vote1$voteA, 100 - vote1$voteA)
-  dem <- vote1$democA
 })
 
 # Save the vote dataset in a csv file.
