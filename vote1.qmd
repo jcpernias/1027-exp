@@ -67,13 +67,15 @@ Variables:
 Descripción de los datos:
 
 ```{r}
-datasummary_skim(vote,
-                 type = "numeric",
-                 fun_numeric = list(Media = Mean, 
-                                    "Desv. Típ." = SD,
-                                    Mín. = Min,
-                                    Mediana = Median,
-                                    Máx. = Max)) |> 
+vote |> 
+  subset(select = -c(state, district)) |> 
+  datasummary_skim(type = "numeric",
+                   align = "lrrrrr",
+                   fun_numeric = list(Media = Mean, 
+                                      "Desv. Típica" = SD,
+                                      Mínimo = Min,
+                                      Mediana = Median,
+                                      Máximo = Max)) |> 
   style_tt(j = 2:6, align = "r")
 ```
 
@@ -83,7 +85,7 @@ datasummary_skim(vote,
 
 *¿En qué proporción de distritos era más fuerte el partido demócrata?* En aquellos distritos electorales para los que `str_dem` toma valores superiores a 50, fue más votado el candidato demócrata a la presidencia de los Estados Unidos. Esto ocurre en el `r round(mean(vote$str_dem > 50) * 100, 1)`% de los distritos.
 
-*¿Existe alguna asociación entre los gastos de campaña de los candidatos y los resultados electorales?* Podemos realizar un análisis preliminar definiendo dos nuevas variables ficticias: `exp_diff` que toma el valor 1 en aquellos distritos en que los demócratas gastaron más y `vote_diff` que toma el valor 1 en los distritos donde ganaron los demócratas.
+*¿Existe alguna asociación entre los gastos de campaña de los candidatos y los resultados electorales?* Podemos realizar un análisis preliminar clasificando los diferentes distritos electorales de acuerdo al candidato que gastó más en campaña y al candidato que obtuvo más votos. Los resultados aparecen en la siguiente tabla de contingencia:
 
 ```{r}
 local({
@@ -93,25 +95,22 @@ local({
                   levels[1], levels[2]), 
            levels = levels)
   }
-  ct_db <- 
-    data.frame("Greater exp." = 
-                 mk_factor(vote$exp_dem - vote$exp_rep > 0), 
-               "More votes" = 
-                 mk_factor(vote$vote_dem - 50 > 0), 
-               check.names = FALSE)
   
-  datasummary_crosstab(`Greater exp.` ~ `More votes`, 
-                       output = "tinytable",
-                       data = ct_db,
-                       statistic = ~ N + Percent("row")) |> 
+  ct_db <- 
+    data.frame(more_exp = 
+                 mk_factor(vote$exp_dem - vote$exp_rep > 0), 
+               more_votes = 
+                 mk_factor(vote$vote_dem - 50 > 0))
+  
+  ct <- datasummary_crosstab(more_exp ~ more_votes, 
+                             data = ct_db,
+                             statistic = ~ N + Percent("row")) 
+  cnames <- colnames(ct)
+  cnames[1] <- "Greater exp."
+  ct |>
+    setNames(cnames) |>
     group_tt(j = list("More votes" = 3:4)) 
 }) 
-```
-
-Una tabla de contingencia:
-
-```{r}
-
 ```
 
 *¿Están asociados los gastos de campaña de los dos rivales? ¿Y están asociados con la fuerza del partido demócrata?*
