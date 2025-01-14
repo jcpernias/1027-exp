@@ -1,6 +1,5 @@
 ---
 title: "vote1"
-
 author: "José Pernías"
 date: last-modified
 lang: es
@@ -9,26 +8,36 @@ toc: true
 number-sections: true
 number-depth: 3
 format-links: false
-
 format:
   html:
     theme:
       - flatly
       - labs_1027.scss
     embed-resources: true
+editor_options: 
+  chunk_output_type: console
 ---
+
+# Objetivos
+
+# Preliminares
 
 Carga paquetes para gráficos y contrastes de hipótesis:
 
 ```{r}
-#| messages: FALSE
+#| message: FALSE
 
 # Use ggformula for graphics and plots
 library(ggformula)
 
+# Use modelsummary for tables
+library(modelsummary)
+
 # Use car for linear hypothesis testing
 library(car)
 ```
+
+# Datos
 
 Lee los datos de un fichero csv:
 
@@ -37,6 +46,67 @@ vote <- read.csv2("data/vote.csv")
 ```
 
 FALTA: descripción de los datos.
+
+Variables:
+
+|  |  |
+|------------------------------------|------------------------------------|
+| state | Estado donde se celebró la elección |
+| `district` | Distrito electoral |
+| `vote_dem` | Porcentaje de votos obtenidos por el candidato demócrata (el porcentje que obtuvo el candidato republicano es `100 - vote_dem`) |
+| `exp_dem` | Gastos de campaña del candidato demócrata (miles de dólares). |
+| `exp_rep` | Gastos de campaña del candidato republicano (miles de dólares). |
+| `str_dem` | Fuerza del partido demócrata medido como el porcentaje de votos obtenido por el candidato demócrata a la presidencia de los Estados Unidos. |
+
+: Variables de la base de datos `vote`
+
+Descripción de los datos:
+
+```{r}
+datasummary_skim(vote,
+                 type = "numeric",
+                 fun_numeric = list(Media = Mean, 
+                                    "Desv. Típ." = SD,
+                                    Mín. = Min,
+                                    Mediana = Median,
+                                    Máx. = Max),
+                 align = "lccccc"
+) 
+```
+
+*¿Qué porcentaje de votos obtuvieron los candidatos demócratas por término medio? ¿En cuántos distritos ganaron los demócratas?* Los candidatos demócratas obtuvieron por término medio el `r round(mean(vote$vote_dem), 1)`% de los votos y ganaron las elecciones en el `r round(mean(vote$vote_dem > 50) * 100, 1)`% de los distritos electorales.
+
+*¿Cuál fue el gasto medio de los candidatos demócratas? ¿Y el de los republicanos? ¿En qué porcentaje de distritos gastó más el candidato demócrata que el republicano?* El gasto medio de los candidatos demócratas fue de `r round(mean(vote$exp_dem), 1)` miles de dólares mientras que el gasto medio de los candidatos republicanos fue menor, `r round(mean(vote$exp_rep), 1)` miles de dólares.
+
+*¿En qué proporción de distritos era más fuerte el partido demócrata?* En aquellos distritos electorales para los que `str_dem` toma valores superiores a 50, fue más votado el candidato demócrata a la presidencia de los Estados Unidos. Esto ocurre en el `r round(mean(vote$str_dem > 50) * 100, 1)`% de los distritos.
+
+*¿Existe alguna asociación entre los gastos de campaña de los candidatos y los resultados electorales?* Podemos realizar un análisis preliminar definiendo dos nuevas variables ficticias: `exp_diff` que toma el valor 1 en aquellos distritos en que los demócratas gastaron más y `vote_diff` que toma el valor 1 en los distritos donde ganaron los demócratas.
+
+```{r}
+vote$more_exp <- factor(ifelse(vote$exp_dem - vote$exp_rep > 0, 
+                               "Dem.", "Rep."), 
+                        levels = c("Dem.", "Rep."))
+vote$more_votes <- factor(ifelse(vote$vote_dem - 50 > 0,
+                                 "Dem. won", "Rep. won"),
+                          levels = c("Dem. won", "Rep. won"))
+```
+
+Una tabla de contingencia:
+
+```{r}
+datasummary_crosstab(more_exp ~ more_votes, data = vote,
+                     statistic = ~ N + Percent("row"))
+```
+
+*¿Están asociados los gastos de campaña de los dos rivales? ¿Y están asociados con la fuerza del partido demócrata?*
+
+```{r}
+datasummary_correlation(subset(vote, select=-c(district, vote_dem)))
+```
+
+# Resultados
+
+## Regresión simple
 
 Regresión simple: votos obtenidos por los candidatos demócratas en función de sus gastos de campaña:
 
@@ -56,6 +126,8 @@ Gráfico de los residuos frente a la variable explicativa:
 ```{r}
 gf_point(uhat ~ exp_dem, data = vote)
 ```
+
+## Regresión multiple
 
 Añadimos los gastos de campaña del candidato rival como un regresor adicional:
 
@@ -90,6 +162,8 @@ gf_point(uhat ~ yhat, data = vote)
 
 FALTA: contraste de hipótesis sobre los parámetros.
 
+## Especificación alternativa
+
 Alternativamente, podemos usar el porcentaje que representan los gastos del candidato demócrata sobre los gastos totales. Normalizamos restando 50, de forma que cuando toma el valor 0 significa que ambos candidatos gastan lo mismo, valores positivos indican que el candidato demócrata gastó relativamente más que el republicano y valores negativos indican que gastó menos el candidato demócrata:
 
 ```{r}
@@ -111,3 +185,5 @@ uhat <- resid(mod5)
 yhat <- fitted(mod5)
 gf_point(uhat ~ yhat, data = vote)
 ```
+
+# Conclusiones
