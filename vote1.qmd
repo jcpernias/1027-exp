@@ -90,7 +90,7 @@ vote |>
 ```{r}
 local({
   mk_factor <- function(x) {
-    levels <- c("Dem.", "Rep.")
+    levels <- c("Democrat", "Republican")
     factor(ifelse(x, 
                   levels[1], levels[2]), 
            levels = levels)
