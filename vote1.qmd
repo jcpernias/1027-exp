@@ -53,7 +53,7 @@ Variables:
 |------------------------------------|------------------------------------|
 | state | Estado donde se celebró la elección |
 | `district` | Distrito electoral |
-| `vote_dem` | Porcentaje de votos obtenidos por el candidato demócrata (el porcentje que obtuvo el candidato republicano es `100 - vote_dem`) |
+| `vote_dem` | Porcentaje de votos obtenidos por el candidato demócrata (el porcentaje que obtuvo el candidato republicano es `100 - vote_dem`) |
 | `exp_dem` | Gastos de campaña del candidato demócrata (miles de dólares). |
 | `exp_rep` | Gastos de campaña del candidato republicano (miles de dólares). |
 | `str_dem` | Fuerza del partido demócrata medido como el porcentaje de votos obtenido por el candidato demócrata a la presidencia de los Estados Unidos. |
@@ -127,7 +127,7 @@ Gráfico de los residuos frente a la variable explicativa:
 gf_point(uhat ~ exp_dem, data = vote)
 ```
 
-## Regresión multiple
+## Regresión múltiple
 
 Añadimos los gastos de campaña del candidato rival como un regresor adicional:
 
