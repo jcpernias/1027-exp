@@ -15,7 +15,7 @@ format:
       - labs_1027.scss
     embed-resources: true
 editor_options: 
-  chunk_output_type: console
+  chunk_output_type: inline
 ---
 
 # Objetivos
@@ -35,6 +35,7 @@ library(tinytable)
 options(modelsummary_factory_default = "tinytable") 
 options(modelsummary_factory_latex = "tinytable") 
 options(modelsummary_factory_html = "tinytable")
+
 library(modelsummary)
 
 # Use car for linear hypothesis testing
@@ -116,7 +117,9 @@ local({
 *¿Están asociados los gastos de campaña de los dos rivales? ¿Y están asociados con la fuerza del partido demócrata?*
 
 ```{r}
-datasummary_correlation(subset(vote, select=-c(district, vote_dem)))
+vote |> 
+  subset(select = -c(state, district, vote_dem)) |> 
+  datasummary_correlation()
 ```
 
 # Resultados
@@ -127,7 +130,17 @@ Regresión simple: votos obtenidos por los candidatos demócratas en función de
 
 ```{r}
 mod1 <- lm(vote_dem ~ exp_dem, data = vote)
-summary(mod1)
+ms <- modelsummary(mod1, shape = term ~ model + statistic,
+                   stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
+                   estimate = "{estimate}",
+                   statistic = c("Std.Error" = "{std.error}",
+                                 "t" = "{statistic}",
+                                 "p-value" = "{p.value}",
+                                 " " = "{stars}"),
+                   gof_omit = 'DF|Deviance|Log.Lik.|AIC|BIC',
+                   align = "lrrrrl")
+colnames(ms) <- c(" ", "Estimate", "Std. Error", "t", "p-value", "")
+ms
 ```
 
 Obtenemos los residuos de la regresión:
