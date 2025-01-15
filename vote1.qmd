@@ -68,6 +68,8 @@ Variables:
 Descripción de los datos:
 
 ```{r}
+#| message: FALSE
+
 vote |> 
   subset(select = -c(state, district)) |> 
   datasummary_skim(type = "numeric",
