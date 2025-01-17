@@ -1,31 +1,59 @@
 library(tinytable)
+library(parameters)
+library(glue)
 
-library(modelsummary)
 
 vote <- read.csv2("data/vote.csv")
 
-mod1 <- lm(vote_dem ~ exp_dem, data = vote)
-ms <- modelsummary(mod1,
-                   shape = term ~ model + statistic,
-                   stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
-                   estimate = "{estimate}",
-                   statistic = c("Std.Error" = "{std.error}",
-                                 "t" = "{statistic}",
-                                 "p-value" = "{p.value}",
-                                 " " = "{stars}"),
-                   gof_omit = 'DF|Deviance|Log.Lik.|AIC|BIC',
-                   align = "lrrrrl",
-                   output = "tinytable")
-colnames(ms) <- c(" ", "Estimate", "Std. Error", "t", "p-value", "")
-# raw <- c("nobs", "sigma", "r.squared", "adj.r.squared", "F")
+mod <- lm(vote_dem ~ exp_dem, data = vote)
 
-# Eliminar nombre de modelo para informar método (OLS o WLS),
-# variable dependiente y número de observaciones.
-# Usar las notas para replicar la sección de bondad de ajuste de R
-#
-# Residual standard error: 15.68 on 171 degrees of freedom
-# Multiple R-squared:  0.0708,	Adjusted R-squared:  0.06537
-# F-statistic: 13.03 on 1 and 171 DF,  p-value: 0.0004024
-#
-# Nota con significado de las estrellas.
-ms
+fmt_pval <- function(x) {
+  ifelse(x < 0.001, "<0.001", sprintf("%.3f", x))
+}
+
+par <- model_parameters(mod,
+                        include_info = TRUE,
+                        pretty_names = FALSE)
+par_names <- names(par)
+in_names <- c("Parameter", "Coefficient", "SE", "t", "p")
+out_names <- c("", "Estimate", "Std. Error", "t", "p-value")
+
+mod_terms <- terms(mod)
+var_names <- attr(mod_terms, "variables")
+depvar <- as.character(var_names[[2]])
+method <- ifelse(class(mod) == "lm", "OLS", "Unknown method")
+
+ser <- attr(par, "sigma")
+df <- attr(par, "residual_df")
+N <- attr(par, "n_obs")
+R2_list <- attr(par, "r2")
+R2 <- R2_list$R2
+adj_R2 <- R2_list$R2_adjusted
+Fstat <- attr(R2_list, "F")
+num_df <- attr(R2_list, "df")
+Fpv <- attr(R2_list, "p")
+
+line1 <-
+  glue("{method}. Dep. variable: {depvar}. Num. of obs. = {N}. ")
+line2 <-
+  glue("Residual standard error: {format_tt(ser, digits = 3)} on {df} degrees of freedom.")
+line3 <-
+  glue("R-squared: {format_tt(R2, digits = 2)}, adjusted R-squared: {format_tt(adj_R2, digits = 2)}.")
+line4 <-
+  glue("F-statistic: {format_tt(Fstat, digits = 2)} on {num_df} and {df} d.f.,  p-value: {fmt_pval(Fpv)}.")
+
+par$Parameter <- c("Constant", par$Parameter[-1])
+
+
+par[ , in_names] |>
+  setNames(out_names) |>
+  tt(width = 0.9,
+     notes = c(line1, line2, line3, line4)) |>
+  style_tt(j = 2:5, align = "r") |>
+  format_tt(j = out_names[2:3], digits = 3) |>
+  format_tt(j = out_names[4], digits = 2) |>
+  format_tt(j = out_names[5], fn = fmt_pval)
+
+
+
+
