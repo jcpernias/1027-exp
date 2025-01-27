@@ -1,5 +1,5 @@
 ---
-title: "vote1"
+title: "Gastos de campaña y resultados electorales"
 author: "José Pernías"
 date: last-modified
 
@@ -24,7 +24,7 @@ editor_options:
 
 # Objetivos
 
-Determinar la relación entre los gastos de campaña y los resultados electorales.
+Se examina la relación que existe entre los resultados electorales y los gastos de campaña. Los datos fueron recogidos por Jeffrey Wooldridge y se utilizan en varias secciones de su manual. En concreto, el objetivo será determinar si los candidatos pueden influir en los resultados de las votaciones gastando más dinero en sus campañas electorales o si, por el contrario, las decisiones de los votantes no se ven afectadas por los gastos de campaña.
 
 ```{r}
 #| message: FALSE
@@ -53,20 +53,14 @@ source("utils.R")
 
 # Datos
 
-Lee los datos de un fichero csv:
-
 ```{r}
-#| echo: FALSE
-
 vote <- read.csv2("data/vote.csv")
 ```
 
-FALTA: descripción de los datos.
-
-Variables:
+Disponemos de una base de datos con información sobre las elecciones de Estados Unidos de 1988 con las que se renovó la Cámara de Representantes. En concreto, se dispone de información sobre los resultados electorales en 173 distritos electorales en los que sólo se presentaban un candidato del Partido Demócrata y otro del Partido Republicano. La tabla siguiente muestra las variables disponibles
 
 |  |  |
-|------------------------------------|------------------------------------|
+|----|----|
 | `state` | Estado donde se celebró la elección |
 | `district` | Distrito electoral |
 | `vote_dem` | Porcentaje de votos obtenidos por el candidato demócrata (el porcentaje que obtuvo el candidato republicano es `100 - vote_dem`) |
@@ -76,7 +70,16 @@ Variables:
 
 : Variables de la base de datos `vote`
 
-Descripción de los datos:
+La siguiente tabla muestra algunas observaciones de la base de datos.
+
+```{r}
+vote |>
+  head() |> 
+  tt() |> 
+  style_tt(j = 2:6, align = "r")
+```
+
+Estadísticos descriptivos:
 
 ```{r}
 #| message: FALSE
@@ -99,7 +102,7 @@ vote |>
 
 *¿En qué proporción de distritos era más fuerte el partido demócrata?* En aquellos distritos electorales para los que `str_dem` toma valores superiores a 50, fue más votado el candidato demócrata a la presidencia de los Estados Unidos. Esto ocurre en el `r round(mean(vote$str_dem > 50) * 100, 1)`% de los distritos.
 
-*¿Existe alguna asociación entre los gastos de campaña de los candidatos y los resultados electorales?* Podemos realizar un análisis preliminar clasificando los diferentes distritos electorales de acuerdo al candidato que gastó más en campaña y al candidato que obtuvo más votos. Los resultados aparecen en la siguiente tabla de contingencia:
+*¿Existe alguna asociación entre los gastos de campaña de los candidatos y los resultados electorales?* Se puede realizar un análisis preliminar clasificando los diferentes distritos electorales de acuerdo al candidato que gastó más en campaña y al candidato que obtuvo más votos. Los resultados aparecen en la siguiente tabla de contingencia:
 
 ```{r}
 local({
@@ -135,11 +138,9 @@ vote |>
   datasummary_correlation()
 ```
 
-# Resultados
+# Regresión simple
 
-## Regresión simple
-
-Regresión simple: votos obtenidos por los candidatos demócratas en función de sus gastos de campaña:
+Modelo de regresión que explica los votos obtenidos por los candidatos demócratas en función de sus gastos de campaña:
 
 $$
 vote\_dem = \beta_0 + \beta_1 exp\_dem + u
@@ -150,16 +151,16 @@ mod1 <- lm(vote_dem ~ exp_dem, data = vote)
 regr_table(mod1)
 ```
 
-Gráfico de los residuos de la regresión frente a la variable explicativa:
+Gráfico de los residuos de la regresión, `uhat`, frente a la variable explicativa, `exp_dem`:
 
 ```{r}
 uhat <- resid(mod1)
 gf_point(uhat ~ exp_dem, data = vote)
 ```
 
-## Regresión múltiple
+# Regresión múltiple
 
-Añadimos los gastos de campaña del candidato rival y la fuerza del partido demócrata como regresores adicionales:
+Se amplía el modelo de regresión incluyendo los gastos de campaña del candidato rival y la fuerza del partido demócrata como regresores adicionales:
 
 $$
 vote\_dem = \beta_0 + \beta_1 exp\_dem + 
@@ -171,7 +172,7 @@ mod3 <- lm(vote_dem ~ exp_dem + exp_rep + str_dem, data = vote)
 regr_table(mod3)
 ```
 
-Gráfico de los residuos frente a los valores ajustados:
+Gráfico de los residuos, `uhat`, frente a los valores ajustados, `yhat`:
 
 ```{r}
 uhat <- resid(mod3)
@@ -179,19 +180,96 @@ yhat <- fitted(mod3)
 gf_point(uhat ~ yhat, data = vote)
 ```
 
-FALTA: contraste de hipótesis sobre los parámetros.
+# Contraste de hipótesis
 
-## Especificación alternativa
+Se contrasta la hipótesis de que los efectos de los gastos de campaña sobre los resultados electorales son iguales en valor absoluto pero con signos opuestos. Expresamos esa hipótesis en términos de los parámetros del modelo:
 
-Alternativamente, podemos usar el porcentaje que representan los gastos del candidato demócrata sobre el total de los gastos de campaña en cada distrito electoral.
+$$
+\begin{gather*}
+H_0: \beta_1 = \beta_2 \\
+H_1: \beta_1 \neq \beta_2
+\end{gather*}
+$$
+
+El modelo restringido se obtiene imponiendo la hipótesis nula:
+
+$$
+vote\_dem = \beta_0 + \beta_1 exp\_dem - 
+\beta_1 exp\_rep + \beta_3 str\_dem + u
+$$
+
+Sacando factor común $\beta_1$:
+
+$$
+vote\_dem = 
+\beta_0 
++ \beta_1 (exp\_dem - exp\_rep) 
++ \beta_3 str\_dem 
++ u
+$$
+
+Definimos la variable `exp_diff` como la diferencia de los gastos de campaña de los dos candidatos:
+
+$$
+exp\_diff = exp\_dem - exp\_rep
+$$
+
+Por lo que el modelo restringido puede expresarse como:
+
+$$
+vote\_dem = 
+\beta_0 
++ \beta_1 exp\_diff
++ \beta_3 str\_dem 
++ u
+$$
+
+Estimación del modelo restringido:
+
+```{r}
+vote$exp_diff <- vote$exp_dem - vote$exp_rep
+
+mod3r <- lm(vote_dem ~ exp_diff + str_dem, data = vote)
+regr_table(mod3r)
+```
+
+El estadístico $F$ compara el ajuste del modelo restringido, que sólo es válido cuando la hipótesis nula es cierta, con el ajuste del modelo restringido, que es válido sea cierta o no la hipótesis nula:
+
+$$
+F = \frac{\big(R^2_{NR} - R^2_{R}\big) / q}{
+(1 - R^2_{NR}) / (N - k - 1)}
+$$
+
+```{r}
+df1 <- 1
+df2 <- df.residual(mod3)
+Rnr <- round(Rsq(mod3), 3)
+Rr <- round(Rsq(mod3r), 3)
+Fnum <- (Rnr - Rr) / df1
+Fden <- (1 - Rnr) / df2
+Fstat <- Fnum / Fden
+Fpv <- pf(Fstat, df1, df2, lower.tail = FALSE)
+lev <- 0.05
+Fcv <- qf(1 - lev, df1, df2)
+```
+
+Sustituyendo en la fórmula los resultados de nuestras estimaciones obtenemos $F = `r round(Fstat, 2)`$. Usando un nivel de significación $\alpha = 5\%$ el valor crítico de una distribución $F$ con `r df1` y `r df2` grados de libertad es `r round(Fcv, 1)` . Como el estadístico $F$ es inferior al valor crítico, no se puede rechazar la hipótesis nula a un nivel de significación del $5\%$.
+
+# Especificación alternativa
+
+Alternativamente, se puede usar como variable explicativa el porcentaje que representan los gastos del candidato demócrata sobre el total de los gastos de campaña en cada distrito electoral.
 
 $$
 share\_exp\_dem = \frac{exp\_dem}{exp\_dem + exp\_rep} \cdot 100 
 $$
 
+Incluimos esta variable en lugar de los gastos de campaña de cada uno de los candidatos:
+
 $$
 vote\_dem = \beta_0 + \beta_1 share\_exp\_dem + str\_dem + u
 $$
+
+Resultados de la estimación:
 
 ```{r}
 vote <- within(vote, {
@@ -204,12 +282,10 @@ mod4 <- lm(vote_dem ~ share_exp_dem + str_dem, data = vote)
 regr_table(mod4)
 ```
 
-Examinamos los residuos de la última regresión:
+Gráfico de los residuos, `uhat`, frente a los valores ajustados, `yhat`:
 
 ```{r}
 uhat <- resid(mod4)
 yhat <- fitted(mod4)
 gf_point(uhat ~ yhat, data = vote)
 ```
-
-# Conclusiones
