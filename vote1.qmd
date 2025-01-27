@@ -141,6 +141,10 @@ vote |>
 
 Regresión simple: votos obtenidos por los candidatos demócratas en función de sus gastos de campaña:
 
+$$
+vote\_dem = \beta_0 + \beta_1 exp\_dem + u
+$$
+
 ```{r}
 mod1 <- lm(vote_dem ~ exp_dem, data = vote)
 regr_table(mod1)
@@ -156,6 +160,11 @@ gf_point(uhat ~ exp_dem, data = vote)
 ## Regresión múltiple
 
 Añadimos los gastos de campaña del candidato rival y la fuerza del partido demócrata como regresores adicionales:
+
+$$
+vote\_dem = \beta_0 + \beta_1 exp\_dem + 
+\beta_2 exp\_rep + \beta_3 str\_dem + u
+$$
 
 ```{r}
 mod3 <- lm(vote_dem ~ exp_dem + exp_rep + str_dem, data = vote)
@@ -174,14 +183,21 @@ FALTA: contraste de hipótesis sobre los parámetros.
 
 ## Especificación alternativa
 
-Alternativamente, podemos usar el porcentaje que representan los gastos del candidato demócrata sobre los gastos totales. Normalizamos restando 50, de forma que cuando toma el valor 0 significa que ambos candidatos gastan lo mismo, valores positivos indican que el candidato demócrata gastó relativamente más que el republicano y valores negativos indican que gastó menos el candidato demócrata:
+Alternativamente, podemos usar el porcentaje que representan los gastos del candidato demócrata sobre el total de los gastos de campaña en cada distrito electoral.
+
+$$
+share\_exp\_dem = \frac{exp\_dem}{exp\_dem + exp\_rep} \cdot 100 
+$$
+
+$$
+vote\_dem = \beta_0 + \beta_1 share\_exp\_dem + str\_dem + u
+$$
 
 ```{r}
-
 vote <- within(vote, {
   exp_diff <- exp_dem - exp_rep
   exp_total <- exp_dem + exp_rep
-  share_exp_dem <- 100 * exp_dem / exp_total - 50
+  share_exp_dem <- 100 * exp_dem / exp_total
 })
 
 mod4 <- lm(vote_dem ~ share_exp_dem + str_dem, data = vote)
