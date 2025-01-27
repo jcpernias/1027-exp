@@ -33,8 +33,8 @@ regr_table <- function(mod) {
     glue("{method}. Number of observations = {N}. "),
     glue("Dependent variable: {depvar}."),
     glue("Residual standard error: {format_tt(ser, digits = 3)} on {df} degrees of freedom."),
-    glue("R-squared: {format_tt(R2, digits = 2)}, adjusted R-squared: {format_tt(adj_R2, digits = 2)}."),
-    glue("F-statistic: {format_tt(Fstat, digits = 2)} on {num_df} and {df} d.f.,  p-value: {fmt_pval(Fpv)}.")
+    glue("R-squared: {format_tt(R2, digits = 3)}, adjusted R-squared: {format_tt(adj_R2, digits = 3)}."),
+    glue("F-statistic: {format_tt(Fstat, digits = 3)} on {num_df} and {df} d.f.,  p-value: {fmt_pval(Fpv)}.")
   )
   par$Parameter <- c("Constant", par$Parameter[-1])
 
@@ -44,6 +44,11 @@ regr_table <- function(mod) {
     tt(width = 0.9, notes = lines) |>
     style_tt(j = 2:5, align = "r") |>
     format_tt(j = out_names[2:3], digits = 3) |>
-    format_tt(j = out_names[4], digits = 2) |>
+    format_tt(j = out_names[4], digits = 3) |>
     format_tt(j = out_names[5], fn = fmt_pval)
+}
+
+Rsq <- function(mod, adjusted = FALSE) {
+  what <- ifelse(adjusted, "ad.r.squared", "r.squared")
+  summary(mod)[[what]]
 }
