@@ -2,6 +2,10 @@
 title: "vote1"
 author: "José Pernías"
 date: last-modified
+
+execute:
+  echo: false
+
 lang: es
 toc-title: Contenido
 toc: true
@@ -20,12 +24,13 @@ editor_options:
 
 # Objetivos
 
-# Preliminares
-
-Carga paquetes para gráficos y contrastes de hipótesis:
+Determinar la relación entre los gastos de campaña y los resultados electorales.
 
 ```{r}
 #| message: FALSE
+
+# Load packages
+# --------------------------------------------
 
 # Use ggformula for graphics and plots
 library(ggformula)
@@ -40,6 +45,10 @@ library(modelsummary)
 
 # Use car for linear hypothesis testing
 library(car)
+
+# Utility functions
+# -------------------------------------------------
+source("utils.R")
 ```
 
 # Datos
@@ -47,6 +56,8 @@ library(car)
 Lee los datos de un fichero csv:
 
 ```{r}
+#| echo: FALSE
+
 vote <- read.csv2("data/vote.csv")
 ```
 
@@ -56,7 +67,7 @@ Variables:
 
 |  |  |
 |------------------------------------|------------------------------------|
-| state | Estado donde se celebró la elección |
+| `state` | Estado donde se celebró la elección |
 | `district` | Distrito electoral |
 | `vote_dem` | Porcentaje de votos obtenidos por el candidato demócrata (el porcentaje que obtuvo el candidato republicano es `100 - vote_dem`) |
 | `exp_dem` | Gastos de campaña del candidato demócrata (miles de dólares). |
@@ -132,61 +143,30 @@ Regresión simple: votos obtenidos por los candidatos demócratas en función de
 
 ```{r}
 mod1 <- lm(vote_dem ~ exp_dem, data = vote)
-ms <- modelsummary(mod1, shape = term ~ model + statistic,
-                   stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01),
-                   estimate = "{estimate}",
-                   statistic = c("Std.Error" = "{std.error}",
-                                 "t" = "{statistic}",
-                                 "p-value" = "{p.value}",
-                                 " " = "{stars}"),
-                   gof_omit = 'DF|Deviance|Log.Lik.|AIC|BIC',
-                   align = "lrrrrl")
-colnames(ms) <- c(" ", "Estimate", "Std. Error", "t", "p-value", "")
-ms
+regr_table(mod1)
 ```
 
-Obtenemos los residuos de la regresión:
+Gráfico de los residuos de la regresión frente a la variable explicativa:
 
 ```{r}
 uhat <- resid(mod1)
-```
-
-Gráfico de los residuos frente a la variable explicativa:
-
-```{r}
 gf_point(uhat ~ exp_dem, data = vote)
 ```
 
 ## Regresión múltiple
 
-Añadimos los gastos de campaña del candidato rival como un regresor adicional:
-
-```{r}
-mod2 <- lm(vote_dem ~ exp_dem + exp_rep, data = vote)
-summary(mod2)
-```
-
-Regresor adicional: fuerza del partido demócrata:
+Añadimos los gastos de campaña del candidato rival y la fuerza del partido demócrata como regresores adicionales:
 
 ```{r}
 mod3 <- lm(vote_dem ~ exp_dem + exp_rep + str_dem, data = vote)
-summary(mod3)
-```
-
-Sería más fácil interpretar los parámetros del modelo si en vez de `str_dem` usamos la diferencia en el porcentaje de votos recibido por el candidato a presidente demócrata:
-
-```{r}
-vote$diff_str <- 2 * vote$str_dem - 100
-
-mod4 <- lm(vote_dem ~ exp_dem + exp_rep + diff_str, data = vote)
-summary(mod4)
+regr_table(mod3)
 ```
 
 Gráfico de los residuos frente a los valores ajustados:
 
 ```{r}
-uhat <- resid(mod4)
-yhat <- fitted(mod4)
+uhat <- resid(mod3)
+yhat <- fitted(mod3)
 gf_point(uhat ~ yhat, data = vote)
 ```
 
@@ -204,15 +184,15 @@ vote <- within(vote, {
   share_exp_dem <- 100 * exp_dem / exp_total - 50
 })
 
-mod5 <- lm(vote_dem ~ share_exp_dem + diff_str, data = vote)
-summary(mod5)
+mod4 <- lm(vote_dem ~ share_exp_dem + str_dem, data = vote)
+regr_table(mod4)
 ```
 
 Examinamos los residuos de la última regresión:
 
 ```{r}
-uhat <- resid(mod5)
-yhat <- fitted(mod5)
+uhat <- resid(mod4)
+yhat <- fitted(mod4)
 gf_point(uhat ~ yhat, data = vote)
 ```
 
