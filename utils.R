@@ -3,7 +3,7 @@ library(glue)
 
 get_method <- function(mod) {
   mod_class <- class(mod)
-  if(length(mod_class) == 1 & mod_class == "lm") {
+  if (length(mod_class) == 1 & mod_class == "lm") {
     wts <- mod$call[["weights"]]
     if (is.null(wts))
       return("OLS")
