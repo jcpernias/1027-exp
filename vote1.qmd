@@ -36,7 +36,7 @@ Se examina la relación que existe entre los resultados electorales y los gastos
 library(ggformula)
 
 # Use modelsummary for tables
-library(tinytable)
+# library(tinytable)
 options(modelsummary_factory_default = "tinytable") 
 options(modelsummary_factory_latex = "tinytable") 
 options(modelsummary_factory_html = "tinytable")
