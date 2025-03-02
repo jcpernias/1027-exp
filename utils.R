@@ -23,8 +23,18 @@ depvar_name <- function(mod) {
 }
 
 sums_of_squares <- function(mod) {
+  mf <- model.frame(mod)
+
+
+  y <- model.response(mf)
   uhat <- residuals(mod)
-  y <- fitted(mod) + uhat
+  w <- model.weights(mf)
+  if (!is.null(w)) {
+    sqrt_w <- sqrt(w)
+    y <- y * sqrt_w
+    uhat <- uhat * sqrt_w
+  }
+
   y_mean <- mean(y)
   list(SSR = as.vector(crossprod(uhat)),
        SST = as.vector(crossprod(y - y_mean)),
@@ -39,11 +49,18 @@ Rsq <- function(mod, adjusted = FALSE) {
     return(1 - (ss$SSR/ss$SSR_df) / (SST / ss$SST_df))
 }
 
-get_parameters <- function(mod) {
+get_parameters <- function(mod, vcov_type = NULL) {
+  if (!is.null(vcov_type)) {
+    vcov_fn <- \(x) { sandwich::vcovHC(x, type = vcov_type)}
+  } else {
+    vcov_fn <- vcov
+  }
+
   bhat <- coef(mod)
   bnames <- names(bhat)
   par <- data.frame(Parameter = bnames, Coefficient = unname(bhat))
-  par$SE <- sqrt(diag(vcov(mod)))[bnames]
+  vbhat <- vcov_fn(mod)
+  par$SE <- sqrt(diag(vbhat))
   tratio <- par$Coefficient / par$SE
   par$t <- tratio
   par$p <- 2 * (1 - pt(abs(tratio), df = df.residual(mod)))
@@ -58,9 +75,10 @@ get_parameters <- function(mod) {
   # Compute F test only if model has an intercept
   Ftest <- NULL
   if (check_intercept(mod)) {
-    dSS <- ss$SST - ss$SSR
+    idx <- bnames != "(Intercept)"
+    q <- bhat[idx]
     num_df <- ss$SST_df - residual_df
-    Fstat <- (dSS / num_df) / sigma_sq
+    Fstat <- as.vector(crossprod(q, solve(vbhat[idx, idx], q)) / num_df)
     Fpv <- pf(Fstat, num_df, residual_df, lower.tail = FALSE)
     Ftest <- list(Fstat = Fstat,
                   num_df = num_df,
@@ -69,6 +87,7 @@ get_parameters <- function(mod) {
   }
 
   structure(par,
+            vcov_type = vcov_type,
             sigma = sqrt(sigma_sq),
             residual_df = residual_df,
             n_obs = nobs(mod),
@@ -78,12 +97,12 @@ get_parameters <- function(mod) {
 }
 
 
-regr_table <- function(mod) {
+regr_table <- function(mod, vcov_type = NULL) {
   fmt_pval <- function(x) {
     ifelse(x < 0.001, "<0.001", sprintf("%.3f", x))
   }
 
-  par <- get_parameters(mod)
+  par <- get_parameters(mod, vcov_type)
   par_names <- names(par)
   out_names <- c("", "Estimate", "Std. Error", "t", "p-value")
 
@@ -115,9 +134,15 @@ regr_table <- function(mod) {
     wts_line <- glue("Weights: {attr(method, 'weights')}")
   }
 
+  vcov_line <- NULL
+  if (!is.null(vcov_type)) {
+    wts_line <- glue("Robust covariance matrix estimator: {attr(par, 'vcov_type')}.")
+  }
+
   lines <- c(
     glue("{method_str}Number of observations = {N}."),
     glue("Dependent variable: {depvar}."),
+    vcov_line,
     wts_line,
     glue("Residual standard error: {format_tt(ser, digits = 3)} on {df} degrees of freedom."),
     glue("R-squared: {format_tt(R2, digits = 3)}, adjusted R-squared: {format_tt(adj_R2, digits = 3)}."),
