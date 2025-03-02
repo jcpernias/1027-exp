@@ -1,6 +1,18 @@
 library(tinytable)
 library(glue)
 
+get_method <- function(mod) {
+  mod_class <- class(mod)
+  if(length(mod_class) == 1 & mod_class == "lm") {
+    wts <- mod$call[["weights"]]
+    if (is.null(wts))
+      return("OLS")
+    ret <- structure("WLS", weights = deparse(wts))
+    return(ret)
+  }
+  return(NULL)
+}
+
 check_intercept <- function(mod) {
   attr(terms(mod), "intercept") == 1
 }
@@ -26,7 +38,6 @@ Rsq <- function(mod, adjusted = FALSE) {
   else
     return(1 - (ss$SSR/ss$SSR_df) / (SST / ss$SST_df))
 }
-
 
 get_parameters <- function(mod) {
   bhat <- coef(mod)
@@ -81,7 +92,11 @@ regr_table <- function(mod) {
 
   # Get the estimation method name
   # For now, we only consider OLS
-  method <- ifelse(class(mod) == "lm", "OLS", "Unknown method")
+  method <- get_method(mod)
+  method_str <- ""
+  if (!is.null(method)) {
+    method_str <- glue("{method}. ")
+  }
 
   ser <- attr(par, "sigma")
   df <- attr(par, "residual_df")
@@ -95,9 +110,15 @@ regr_table <- function(mod) {
     Fline <- NULL
   }
 
+  wts_line <- NULL
+  if (method == "WLS") {
+    wts_line <- glue("Weights: {attr(method, 'weights')}")
+  }
+
   lines <- c(
-    glue("{method}. Number of observations = {N}. "),
+    glue("{method_str}Number of observations = {N}."),
     glue("Dependent variable: {depvar}."),
+    wts_line,
     glue("Residual standard error: {format_tt(ser, digits = 3)} on {df} degrees of freedom."),
     glue("R-squared: {format_tt(R2, digits = 3)}, adjusted R-squared: {format_tt(adj_R2, digits = 3)}."),
     Fline
