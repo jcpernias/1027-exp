@@ -1,0 +1,130 @@
+---
+title: "Observaciones atípicas"
+author: "José Pernías"
+date: last-modified
+
+execute:
+  echo: false
+
+lang: es
+toc-title: Contenido
+toc: true
+number-sections: true
+number-depth: 3
+format-links: false
+format:
+  html:
+    theme:
+      - flatly
+      - labs_1027.scss
+    embed-resources: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Objetivos
+
+Examinar los efectos de las observaciones atípicas en los resultados de la regresión hedónica de los precios de venta de las casas de Boston.
+
+```{r}
+#| warning: false
+#| message: false
+
+library(wooldridge)
+library(sandwich)
+library(lmtest)
+library(ggformula)
+
+source("utils.R")
+hprice1$size <- hprice1$sqrft / 10.763910
+hprice1$lotsize <- hprice1$lotsize / 10.763910
+```
+
+## Estimación por MCO
+
+Utilizaremos la base de datos `hprice1` para estimar por MCO un modelo que explicaba el precio de venta de las casas, `price` con el tamaño de la casas, `house_m2`, el tamaño de la parcela, `lot_m2`, y el número de dormitorios, `bdrms`. En aquella ocasión se detectó heteroscedasticidad, por lo que usamos errores típicos robustos a heteroscedasticidad.
+
+```{r}
+#| warning: false
+#| message: false
+
+mod1 <- lm(price ~ bdrms + colonial +  lotsize + size, data = hprice1)
+regr_table(mod1, vcov_type = "HC1")
+```
+
+## Detección de observaciones atípicas
+
+Examinaremos la existencia de observaciones atípicas mediante gráficos de los residuos frente a cada una de las explicativas. En primer lugar, guardamos los residuos en la variable `uhat`:
+
+```{r}
+uhat <- resid(mod1)
+```
+
+No encontramos nada fuera de lo común en el gráfico de los residuos frente a la variable `dcolonial`.
+
+```{r}
+gf_point(uhat ~ colonial, data = hprice1)
+```
+
+Tampoco hay evidencia de problemas con los datos en el gráfico de los residuos frente a la variable `bdrms`.
+
+```{r}
+gf_point(uhat ~ bdrms, data = hprice1)
+```
+
+En cambio, en el gráfico con `lotsize` se aprecia claramente una observación con un tamaño de parcela inusualmente grande.
+
+```{r}
+gf_point(uhat ~ lotsize, data = hprice1)
+```
+
+El gráfico con `size` no revela nada especialmente llamativo.
+
+```{r}
+gf_point(uhat ~ size, data = hprice1)
+```
+
+## Residuos estudentizados
+
+Creamos una ficticia, `big_lotsize` que toma el valor 1 para las casas con un tamaño de parcela superior a 7500 metros cuadrados. Solamente una observación cumple esta condición. Añadimos la ficticia al modelo de regresión. El estadístico $t$ de `large_lot` es el residuo estudentizado.
+
+```{r}
+#| warning: false
+
+hprice1$big_lotsize <- as.integer(hprice1$lotsize > 7500)
+mod2 <- update(mod1, . ~ . + big_lotsize)
+regr_table(mod2, vcov_type = "HC1")
+```
+
+Una vez controlada la observación atípica, el contraste de Breusch-Pagan no muestra problemas de heteroscedasticidad.
+
+```{r}
+uhat_sq <- resid(mod2)^2
+aux <- update(mod2, uhat_sq ~ .)
+regr_table(aux)
+```
+
+Incluir la ficticia `big_lotsize` tiene el mismo efecto que eliminar de la muestra la observación atípica.
+
+```{r}
+mod3 <- update(mod1, subset = !big_lotsize)
+regr_table(mod3, vcov_type = "HC1")
+```
+
+## Conclusión
+
+La siguiente tabla permite comparar las estimaciones que se han obtenido en esta sesión. Al controlar la observación atípica (mediante una ficticia o eliminándola de la muestra) no hay evidencia de heteroscedasticidad y los efectos de todas las variables explicativas son significativos.
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+
+library(modelsummary)
+modelsummary(list('Mod. 1' = mod1, "Mod. 2" = mod2, "Mod.3" = mod3), 
+                       stars = c('*' = 0.1, '**' = 0.05, '***' = 0.01), 
+                       #estimate = "{estimate} ({std.error}){stars}",
+                       #statistic = NULL,
+                       vcov = c("HC1", "HC1", "HC1"), 
+                       gof_omit = "[AB]IC|Log.Lik.|RMSE")
+```
