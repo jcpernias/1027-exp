@@ -1,0 +1,191 @@
+---
+title: "Efectividad de las leyes anti-tabaco"
+author: "José Pernías"
+date: last-modified
+
+execute:
+  echo: false
+
+lang: es
+toc-title: Contenido
+toc: true
+number-sections: true
+number-depth: 3
+format-links: false
+format:
+  html:
+    theme:
+      - flatly
+      - labs_1027.scss
+    embed-resources: true
+editor_options: 
+  chunk_output_type: inline
+---
+
+## Objetivo
+
+Se estimará qué efecto tienen las leyes que prohíben el consumo de tabaco en restaurantes sobre la probabilidad de fumar. Para ello se utilizará el modelo lineal de probabilidad. Los datos provienen de una encuesta llevada a cabo en Estados Unidos en los años 1979 y 1980.
+
+```{r}
+#| message: FALSE
+
+# Load packages
+# --------------------------------------------
+# Load tidyverse
+library(tidyverse)
+
+# Use ggformula for graphics and plots
+library(ggformula)
+
+# Use modelsummary for tables
+# library(tinytable)
+options(modelsummary_factory_default = "tinytable") 
+options(modelsummary_factory_latex = "tinytable") 
+options(modelsummary_factory_html = "tinytable")
+
+library(modelsummary)
+
+# Use car for linear hypothesis testing
+library(car)
+
+library(lmtest)
+library(sandwich)
+
+# Utility functions
+# -------------------------------------------------
+source("utils.R")
+```
+
+## Datos
+
+La base de datos `smoke.csv` contiene las siguientes variables:
+
+|  |  |
+|------------------------------------|------------------------------------|
+| `educ` | Educación, número de años en el sistema educativo. |
+| `cigprice` | Precio de un paquete de cigarrillos, centavos. |
+| `age` | Edad, en años. |
+| `income` | Renta anual, dólares |
+| `cigs` | Número de cigarrillos que fuma diariamente. |
+| `law` | variable ficticia, toma el valor 1 si el individuo vive en un estado donde hay leyes que prohíben fumar en lugares públicos. |
+
+```{r}
+smoke <- read_csv("data/smoke.csv", col_types = "ddiiii") |> 
+  mutate(lincome = log(income),
+         lcigprice = log(cigprice),
+         smoker = as.integer(cigs > 0))
+```
+
+Los datos provienen de una encuesta llevada a cabo en los años 1979 y 1980, a la que respondieron `r nrow(smoke)` hombres elegidos al azar. La variable `cigs` recoge el número de cigarrillos que fumaba diariamente cada uno de los encuestados. A partir de la variable `cigs` se crea la variable ficticia `smoker` que tomará el valor 1 para las observaciones correspondientes a fumadores y 0 en caso contrario.
+
+## El efecto de las leyes anti-tabaco
+
+### Regresión simple
+
+En primer lugar, estimamos un modelo lineal de probabilidad para `smoker`, usando sólo una variable explicativa: `law`, una variable ficticia que indica si el individuo reside en un estado donde está prohibido fumar en lugares públicos. En un modelo lineal de probabilidad la varianza condicional del término de error no es constante y los errores típicos de MCO no son correctos. En consecuencia, se presentran los resultados de la estimación con errores típicos robustos a heteroscedasticidad.
+
+```{r}
+#| message: false
+
+mlp_simple <- lm(smoker ~ law, data = smoke)
+regr_table(mlp_simple, vcov_type = "HC1")
+```
+
+Los parámetros de este modelo están relacionados con la probabilidad de que un hombre elegido al azar fume dependiendo de si en su estado de residencia se permite fumar en restaurantes o no: $$
+\begin{gather*}
+  \Pr(\mathit{smoker} = 1 | \mathit{law} = 0) = \beta_0 \\
+  \Pr(\mathit{smoker} = 1 | \mathit{law} = 1) = \beta_0  + \beta_1
+\end{gather*}
+$$Las estimaciones MCO indican que la probabilidad de que un hombre fume es igual $0{,}41$ en los estados que no limitan el consumo de tabaco. En los estados que han aprobado leyes que prohíben fumar, esta probabilidad es menor: $0{,}41 - 0,10 = 0{,}31$. De acuerdo con el contraste de significación del parámetro $\beta_1$, se puede afirmar que la probabilidad de fumar es significativamente menor en aquellos estados que han aprobado leyes anti-tabaco.
+
+### Más variables explicativas
+
+Ahora ampliamos el modelo para recoger otros factores que potencialmente influyen en el consumo de tabaco:
+
+-   `lincome`: logaritmo de la renta anual en dólares.
+-   `lcigprice`: logaritmo del precio de un paquete de tabaco.
+-   `educ`: años de educación.
+-   `age`: edad en años.
+
+La siguiente tabla muestra las estimaciones por MCO y los errores típicos robustos a heteroscedasticidad.
+
+```{r}
+mlp <- lm(smoker ~ law + lincome + lcigprice + educ + age, 
+          data = smoke)
+regr_table(mlp, vcov_type = "HC1")
+```
+
+La estimación del parámetro de `law` es prácticamente idéntica a la que se obtuvo con el modelo de regresión simple. El contraste $t$ indica que esta variable tiene un efecto significativo sobre la probabilidad de fumar al $5\%$. Por otro lado, el estadístico $F$ de la regresión es aproximadamente $8{,}2$, que es un valor muy elevado para provenir de la distribución bajo la hipótesis nula (valor-$p < 0{,}001$). Concluimos que las explicativas son conjuntamente significativas al nivel de significación del $5\%$.
+
+### Bondad del ajuste
+
+En un modelo lineal de probabilidad, las predicciones de MCO se pueden interpretar como estimaciones de la probabilidad condicional de que $y = 1$. Las calculamos con `fitted`:
+
+```{r}
+phat <- fitted(mlp)
+```
+
+Para predecir la variable dependiente se suele asignar el valor 1 a aquellas observaciones con probabilidad superior a 0.5:
+
+```{r}
+yhat <- as.integer(phat >= 0.5)
+```
+
+En la evaluación del ajuste se puede utilizar una tabla donde comparamos las predicciones con los valores reales de la variable dependiente. Cada celda de la tabla es el número de observaciones que corresponde a una determinada combinación de $y$ e $\hat{y}$:
+
+```{r}
+tab <- table(pred = yhat, real = smoke$smoker)
+tab
+```
+
+Con modelos donde la variable dependiente es binaria, se suele usar como medida de la bondad del ajuste el porcentaje de observaciones correctamente predichas. Se obtiene dividiendo la suma de las celdas en la diagonal por la suma de todas las celdas y multiplicando por 100:
+
+```{r}
+100 * sum(diag(tab)) / sum(tab)
+```
+
+Este número indica que el $`r format(100 * sum(diag(tab)) / sum(tab), digits=3, decimal.mark = "{,}")`\%$ de las predicciones obtenidas con nuestro modelo son correctas.
+
+### Mínimos Cuadrados Ponderados Factibles
+
+Mínimos cuadrados ponderados factibles (MCPF) puede ser un estimador alternativo del modelo lineal de probabilidad. La varianza del término de error del MLP es:
+
+$$
+  E(u^2_i|x_i) = p_i (1 - p_i)  
+$$ donde $$
+  p_i = \beta_0 + \beta_1 x_{1i} + \dots + \beta_k x_{ki} 
+$$
+
+Podemos estimar $p_i$ con las predicciones del modelo lineal de probabilidad y utilizar como ponderaciones del método de MCPF la inversa de $$
+\hat{h}_i = \hat{p}_i (1 - \hat{p}_i) 
+$$
+
+Este procedimiento no funcionaría si la probabilidad predicha para alguna observación es superior a 1 o inferior a 0. Antes calculamos `phat`, las estimaciones de las probabilidades, con la función `fitted` y ahora obtenemos su rango de variación (valores mínimo y máximo) con la función `range`:
+
+```{r}
+range(phat)
+```
+
+Ya que ninguna de las probabilidades está fuera del intervalo $(0, 1)$ podemos estimar por MCPF:
+
+```{r}
+hhat <- phat * (1 - phat)
+what <- 1 / hhat
+mlp_mcp <- update(mlp, weights = what)
+regr_table(mlp_mcp)
+```
+
+En este caso, las estimaciones y los errores típicos de MCPF son muy similares a los obtenidos antes con MCO.
+
+```{r}
+#| warning: false
+#| message: false
+#| echo: false
+
+library(modelsummary)
+modelsummary(list("MCO" = mlp, "MCO + cov. robusta" = mlp, 
+                  "MCPF" = mlp_mcp), 
+             vcov = c("constant", "robust", "constant"),
+             stars = c("*" = 0.1, "**" = 0.05, "***" = 0.01), 
+             gof_omit = ".*")
+```
