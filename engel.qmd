@@ -90,11 +90,7 @@ Estimamos los parámetros de los dos modelos por MCO usando errores típicos rob
 
 ## Bondad del ajuste
 
-Las medidas de bondad del ajuste pueden usarse para comparar modelos cuando la variable dependiente es la misma. Calcularemos el $R^2$ ajustado para nuestros dos modelos utilizando la fórmula: $$
-\bar{R}^2 = 1 - \frac{\hat{\sigma}^2}{\operatorname{Var}(y)}
-$$
-
-De acuerdo a este criterio el Modelo B sería preferible.
+Las medidas de bondad del ajuste pueden usarse para comparar modelos cuando la variable dependiente es la misma. El $R^2$ ajustado para el modelo A es `r round(Rsq(mod_A, adjusted = TRUE), 2)`, mientras que para el modelo B es `r round(Rsq(mod_B, adjusted = TRUE), 2)`. De acuerdo con este criterio, el modelo B sería preferible.
 
 ## Contrastes de hipótesis no anidadas
 
