@@ -46,7 +46,7 @@ Rsq <- function(mod, adjusted = FALSE) {
   if (!adjusted)
     return(1 - ss$SSR / ss$SST)
   else
-    return(1 - (ss$SSR/ss$SSR_df) / (SST / ss$SST_df))
+    return(1 - (ss$SSR/ss$SSR_df) / (ss$SST / ss$SST_df))
 }
 
 get_parameters <- function(mod, vcov_type = NULL) {
