@@ -31,12 +31,6 @@ Los datos fueron recopilados para el artículo de Blundell, Duncan, and Pendakur
 
 La fuente original de los datos es la Encuesta de Gastos Familiares británica (*Family Expenditure Survey*) para los años 1980-1982. Los autores seleccionaron una muestra relativamente homogénea de familias: parejas con uno o dos hijos que viven en el sureste de Inglaterra y donde el sustentador principal tiene un trabajo por cuenta ajena. Los autores presentan métodos para estimar curvas de Engel de diferentes categorías de bienes (alimentación, energía, etc.). La selección de la muestra se hace con respecto a las variables explicativas (características demográficas) por lo que no afectaría a las propiedades de insesgadez y consistencia de los estimadores. Por un lado, la utilización de una muestra relativamente homogénea simplifica la especificación de las curvas de Engel, pero, por otro, limita la generalidad de los resultados.
 
-Esos datos están recogidos en el fichero `engel.csv` donde se usan comas para separar las variables y puntos para separar los decimales. Para leer los ficheros CSV que usan ese formato empleamos la función `read.csv`:
-
-```{r}
-engel <- read.csv("data/engel.csv")
-```
-
 El fichero `engel.csv` contiene las siguientes variables:
 
 -   `totexpend`: gasto total en consumo (£ por semana).
@@ -62,6 +56,7 @@ library(sandwich)
 library(car)
 
 source("utils.R")
+engel <- read.csv("data/engel.csv")
 ```
 
 A lo largo de esta sesión trabajaremos con dos especificaciones alternativas de la curva de Engel para la alimentación:
