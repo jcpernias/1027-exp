@@ -42,7 +42,7 @@ hprice1$lotsize <- hprice1$lotsize / 10.763910
 
 ## Estimación por MCO
 
-Utilizaremos la base de datos `hprice1` para estimar por MCO un modelo que explicaba el precio de venta de las casas, `price`, con el número de dormitorios, `bdrms`, una ficticia que indicaba si la casa es de estilo colonial, `colonial`, el tamaño de la casa en metros cuadrados, `size`, y el tamaño de la parcela en metros cuadrados, `lotsize`. En otro laboratorio se detectó heteroscedasticidad, por lo que usamos errores típicos robustos a heteroscedasticidad en la estimación.
+Utilizaremos la base de datos `hprice1` para estimar por MCO un modelo de regresión hedónica para explicar el precio de venta de las casas, `price`, a través de sus característcas: el número de dormitorios, `bdrms`, una ficticia que indicaba si la casa es de estilo colonial, `colonial`, el tamaño de la casa en metros cuadrados, `size`, y el tamaño de la parcela en metros cuadrados, `lotsize`. En otro laboratorio se detectó heteroscedasticidad, por lo que usamos errores típicos robustos a heteroscedasticidad en la estimación.
 
 ```{r}
 #| warning: false
@@ -72,19 +72,19 @@ Tampoco hay evidencia de problemas con los datos en el gráfico de los residuos 
 gf_point(uhat ~ bdrms, data = hprice1)
 ```
 
-En cambio, en el gráfico con `lotsize` se aprecia claramente una observación con un tamaño de parcela inusualmente grande.
+En cambio, en el gráfico de `uhat` y `lotsize` se aprecia claramente una observación con un tamaño de parcela inusualmente grande.
 
 ```{r}
 gf_point(uhat ~ lotsize, data = hprice1)
 ```
 
-El gráfico con `size` no revela nada especialmente llamativo.
+El gráfico de los residuos y `size` no revela nada especialmente llamativo.
 
 ```{r}
 gf_point(uhat ~ size, data = hprice1)
 ```
 
-Los gráficos revelan la existencia de una observación atípica en la muestra, que presenta un tamaño del jardín anormalmente grande. Posiblemente un error a la hora de introducir los datos sea el responsable de esa observación atípica. Incluso si la información es correcta, deberíamos de plantearnos si debemos incluir en nuestra muestra una casa con características tan singulares.
+Los gráficos revelan la existencia de una observación atípica en la muestra, la cual corresponde a una casa con una parcela anormalmente grande. Posiblemente, esta observación sea el fruto de un error a la hora de introducir los datos. Incluso si la información es correcta, deberíamos de plantearnos si debemos incluir en nuestra estimación una casa con características tan singulares.
 
 ## Residuos estudentizados
 
@@ -98,7 +98,9 @@ mod2 <- update(mod1, . ~ . + big_lotsize)
 regr_table(mod2, vcov_type = "HC1")
 ```
 
-El residuo estudentizado toma un valor muy grande en valor absoluto, lo que confirmaría que la observación es atípica. Al controlar esta observación, las estimaciones del resto de los parámetros son apreciablemente distintas. Por otro lado, el contraste de Breusch-Pagan ya no muestra problemas de heteroscedasticidad.
+El residuo estudentizado toma un valor muy grande en valor absoluto, lo que confirmaría que la observación es atípica. Al controlar esta observación, las estimaciones del resto de los parámetros son apreciablemente distintas.
+
+Por otro lado, el contraste de Breusch-Pagan ya no muestra problemas de heteroscedasticidad. La siguiente tabla presenta la estimación de la regresión auxiliar de este contraste:
 
 ```{r}
 uhat_sq <- resid(mod2)^2
@@ -106,7 +108,9 @@ aux <- update(mod2, uhat_sq ~ .)
 regr_table(aux)
 ```
 
-Incluir la ficticia `big_lotsize` en la regresióntiene el mismo efecto que eliminar de la muestra la observación atípica.
+El estadístico $F$ de la regresión auxiliar toma un valor relativamente bajo, $0.835$, lo que se traduce en un valor-p elevado, $0.528$. Al ser el valor-p mayor que el nivel de significación $\alpha = 5\%$ no se rechaza la hipótesis nula de homoscedasticidad.
+
+Incluir la ficticia `big_lotsize` en la regresión tiene el mismo efecto que eliminar de la muestra la observación atípica.
 
 ```{r}
 mod3 <- update(mod1, subset = !big_lotsize)
