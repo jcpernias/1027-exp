@@ -61,7 +61,7 @@ source("utils.R")
 La base de datos `smoke.csv` contiene las siguientes variables:
 
 |  |  |
-|------------------------------------|------------------------------------|
+|----|----|
 | `educ` | Educación, número de años en el sistema educativo. |
 | `cigprice` | Precio de un paquete de cigarrillos, centavos. |
 | `age` | Edad, en años. |
